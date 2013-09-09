@@ -1,0 +1,14 @@
+<?php 
+$parsed = parse_url($REQUEST_URI);
+$parsed = $parsed['path'];
+
+switch (basename($PHP_SELF)) {
+case "shop.php":
+echo '<div id="bodyContent2" class="grid_16 push_4">';
+break;
+default:
+echo '<div id="bodyContent" class="grid_16 push_4"><div class="breadcrumb">' . $breadcrumb->trail(' &raquo; ');
+echo '</div>';
+break;
+}
+?>
