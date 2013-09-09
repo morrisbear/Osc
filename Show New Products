@@ -1,0 +1,1 @@
+<?php include(DIR_WS_MODULES . FILENAME_NEW_PRODUCTS); ?>
