@@ -1,1 +1,2 @@
-<?php echo $currencies->format($cart->show_total())?>
+<span class="items"><?php echo $cart->count_contents() ?> items</span> | 
+<span><?php echo $cart->show_total() ?></span>
