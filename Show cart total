@@ -1,0 +1,1 @@
+<?php echo $currencies->format($cart->show_total())?>
