@@ -1,0 +1,9 @@
+<?php
+  if ($banner = tep_banner_exists('dynamic', '468x50')) {
+?>
+
+       <?php echo tep_display_banner('static', $banner); ?>
+
+<?php
+  }
+?>
