@@ -1,0 +1,354 @@
+<?php
+/*
+  $Id$
+
+  osCommerce, Open Source E-Commerce Solutions
+  http://www.oscommerce.com
+
+  Copyright (c) 2010 osCommerce
+
+  Released under the GNU General Public License
+*/
+
+  require('includes/application_top.php');
+
+  require(DIR_WS_LANGUAGES . $language . '/' . FILENAME_PRODUCT_INFO);
+
+  $product_check_query = tep_db_query("select count(*) as total from " . TABLE_PRODUCTS . " p, " . TABLE_PRODUCTS_DESCRIPTION . " pd where p.products_status = '1' and p.products_id = '" . (int)$HTTP_GET_VARS['products_id'] . "' and pd.products_id = p.products_id and pd.language_id = '" . (int)$languages_id . "'");
+  $product_check = tep_db_fetch_array($product_check_query);
+// BOF Separate Pricing per Customer
+  if (isset($_SESSION['sppc_customer_group_id']) && $_SESSION['sppc_customer_group_id'] != '0') {
+    $customer_group_id = $_SESSION['sppc_customer_group_id'];
+  } else {
+    $customer_group_id = '0';
+  }
+// EOF Separate Pricing per Customer
+//echo "select p.products_id, pd.products_name, pd.products_description, p.products_model, p.products_quantity,p.mini_multi_qty, p.products_image, pd.products_url, p.products_price, p.products_tax_class_id, p.products_date_added, p.products_date_available, p.manufacturers_id from " . TABLE_PRODUCTS . " p, " . TABLE_PRODUCTS_DESCRIPTION . " pd where p.products_status = '1' and p.products_id = '" . (int)$_GET['products_id'] . "' and pd.products_id = p.products_id and pd.language_id = '" . (int)$languages_id . "'";
+
+  /*** Begin Header Tags SEO ***/
+    $product_info_query = tep_db_query("select p.products_id, pd.products_name, pd.products_description, p.products_model, p.products_quantity,p.mini_multi_qty, p.products_image, pd.products_url, p.products_price, p.products_tax_class_id, p.products_date_added, p.products_date_available, p.manufacturers_id, pd.products_head_sub_text from " . TABLE_PRODUCTS . " p, " . TABLE_PRODUCTS_DESCRIPTION . " pd where p.products_status = '1' and p.products_id = '" . (int)$HTTP_GET_VARS['products_id'] . "' and pd.products_id = p.products_id and pd.language_id = '" . (int)$languages_id . "'");
+    /*** End Header Tags SEO ***/
+
+
+   if ($product_check['total'] >= 1) {
+    $product_info = tep_db_fetch_array($product_info_query);
+	
+	if($product_info['mini_multi_qty']<=0)
+		$set_mini_multi_qty =1;
+	} else {
+		$set_mini_multi_qty = $product_info['mini_multi_qty'];
+	}
+  require(DIR_WS_INCLUDES . 'template_top.php');
+
+  if ($product_check['total'] < 1) {
+?>
+
+<div class="contentContainer">
+  <div class="contentText">
+    <?php echo TEXT_PRODUCT_NOT_FOUND; ?>
+  </div>
+
+  <div style="float: right;">
+    <?php echo tep_draw_button(IMAGE_BUTTON_CONTINUE, 'triangle-1-e', tep_href_link(FILENAME_DEFAULT)); ?>
+  </div>
+</div>
+
+<?php
+  } else {
+   
+
+    tep_db_query("update " . TABLE_PRODUCTS_DESCRIPTION . " set products_viewed = products_viewed+1 where products_id = '" . (int)$HTTP_GET_VARS['products_id'] . "' and language_id = '" . (int)$languages_id . "'");
+
+    if ($new_price = tep_get_products_special_price($product_info['products_id'])) {
+// BOF Separate Pricing per Customer
+      if ($customer_group_id > 0) { // only need to check products_groups if customer is not retail
+        $scustomer_group_price_query = tep_db_query("select customers_group_price from " . TABLE_PRODUCTS_GROUPS . " where products_id = '" . (int)$HTTP_GET_VARS['products_id']. "' and customers_group_id =  '" . $customer_group_id . "'");
+        if ($scustomer_group_price = tep_db_fetch_array($scustomer_group_price_query)) {
+          $product_info['products_price']= $scustomer_group_price['customers_group_price'];
+	      }
+      } // end if ($customer_group_id > 0)
+// EOF Separate Pricing per Customer
+      $products_price = '<del>' . $currencies->display_price($product_info['products_price'], tep_get_tax_rate($product_info['products_tax_class_id'])) . '</del> <span class="productSpecialPrice">' . $currencies->display_price($new_price, tep_get_tax_rate($product_info['products_tax_class_id'])) . '</span>';
+    } else {
+// BOF Separate Pricing per Customer
+      if ($customer_group_id > 0) { // only need to check products_groups if customer is not retail
+        $scustomer_group_price_query = tep_db_query("select customers_group_price from " . TABLE_PRODUCTS_GROUPS . " where products_id = '" . (int)$HTTP_GET_VARS['products_id']. "' and customers_group_id =  '" . $customer_group_id . "'");
+        if ($scustomer_group_price = tep_db_fetch_array($scustomer_group_price_query)) {
+					$product_info['products_price']= $scustomer_group_price['customers_group_price'];
+				}
+			} // end if ($customer_group_id > 0)
+// EOF Separate Pricing per Customer
+      $products_price = $currencies->display_price($product_info['products_price'], tep_get_tax_rate($product_info['products_tax_class_id']));
+    }
+
+    if (tep_not_null($product_info['products_model'])) {
+      $products_name = $product_info['products_name'] . '<br /><span class="smallText">[' . $product_info['products_model'] . ']</span>';
+    } else {
+      $products_name = $product_info['products_name'];
+    }
+	
+//DISPLAY PRODUCT WAS ADDED TO WISHLIST IF WISHLIST REDIRECT IS ENABLED
+	if(tep_session_is_registered('wishlist_id')) {
+?>
+	  <tr>
+		<td class="messageStackSuccess"><?php echo PRODUCT_ADDED_TO_WISHLIST; ?></td>
+	  </tr>
+<?php
+		tep_session_unregister('wishlist_id');
+	}
+//DISPLAY PRODUCT WAS ADDED TO WISHLIST IF WISHLIST REDIRECT IS ENABLED	
+	
+?>
+
+<?php// echo tep_draw_form('cart_quantity', tep_href_link(FILENAME_PRODUCT_INFO, tep_get_all_get_params(array('action')) . 'action=add_product')); ?>
+<?php
+
+ echo tep_draw_form('cart_quantity', tep_href_link(FILENAME_PRODUCT_INFO, tep_get_all_get_params(array('action')) . 'action=add_product'), 'post', 'id="cart_quantity" enctype="multipart/form-data"'); ?>
+ <input type="hidden" name="the_quantity" id="the_quantity" value="<?php echo $set_mini_multi_qty?>">
+
+
+
+<div class="contentContainer">
+  <div class="contentText">
+
+<?php
+    if (tep_not_null($product_info['products_image'])) {
+      $pi_query = tep_db_query("select image, htmlcontent from " . TABLE_PRODUCTS_IMAGES . " where products_id = '" . (int)$product_info['products_id'] . "' order by sort_order");
+
+      if (tep_db_num_rows($pi_query) > 0) {
+?>
+
+    <div id="piGal" style="float: left;">
+      <ul>
+
+<?php
+        $pi_counter = 0;
+        while ($pi = tep_db_fetch_array($pi_query)) {
+          $pi_counter++;
+
+          $pi_entry = '        <li><a href="';
+
+          if (tep_not_null($pi['htmlcontent'])) {
+            $pi_entry .= '#piGalimg_' . $pi_counter;
+          } else {
+            $pi_entry .= tep_href_link(DIR_WS_IMAGES . $pi['image']);
+          }
+
+          $pi_entry .= '" target="_blank" rel="fancybox">' . tep_image(DIR_WS_IMAGES . $pi['image']) . '</a>';
+
+          if (tep_not_null($pi['htmlcontent'])) {
+            $pi_entry .= '<div style="display: none;"><div id="piGalimg_' . $pi_counter . '">' . $pi['htmlcontent'] . '</div></div>';
+          }
+
+          $pi_entry .= '</li>';
+
+          echo $pi_entry;
+        }
+?>
+
+      </ul>
+    </div>
+
+<script type="text/javascript">
+$('#piGal ul').bxGallery({
+  maxwidth: 300,
+  maxheight: 300,
+  thumbwidth: <?php echo (($pi_counter > 1) ? '75' : '0'); ?>,
+  thumbcontainer: 300,
+  load_image: 'ext/jquery/bxGallery/spinner.gif'
+});
+</script>
+
+<?php
+      } else {
+?>
+
+    <div id="piGal" style="float: left; text-align:center; width:300px;">
+      <?php echo '<a href="' . tep_href_link(DIR_WS_IMAGES . $product_info['products_image']) . '" target="_blank" rel="fancybox">' . tep_image(DIR_WS_IMAGES . $product_info['products_image'], addslashes($product_info['products_name']), '', 300, 'hspace="5" vspace="5"') . '</a>'; ?>
+    </div>
+
+<?php
+      }
+?>
+
+<div style="float:right; margin-left: 15px; width: 410px; margin-bottom: 25px;">
+  
+  <h1><?php echo $products_name; ?></h1>
+
+
+<?php
+    }
+	// Points/Rewards system V2.1beta BOF
+
+    if ((USE_POINTS_SYSTEM == 'true') && (DISPLAY_POINTS_INFO == 'true')) {
+
+	    if ($new_price = tep_get_products_special_price($product_info['products_id'])) {
+
+		    $products_price_points = tep_display_points($new_price, tep_get_tax_rate($product_info['products_tax_class_id']));
+
+	    } else {
+
+		    $products_price_points = tep_display_points($product_info['products_price'], tep_get_tax_rate($product_info['products_tax_class_id']));
+
+	    }
+
+	    $products_points = tep_calc_products_price_points($products_price_points);
+
+	    $products_points_value = tep_calc_price_pvalue($products_points);
+
+	    if ((USE_POINTS_FOR_SPECIALS == 'true') || $new_price == false) {
+
+		    echo '<p>' . sprintf(TEXT_PRODUCT_POINTS , number_format($products_points,POINTS_DECIMAL_PLACES), $currencies->format($products_points_value)) . '</p>';
+
+	    }
+
+    }
+
+// Points/Rewards system V2.1beta EOF
+?>
+<?php echo stripslashes($product_info['products_description']); ?>
+<h1><div id="the_price"><?php echo $products_price; ?></div></h1>
+<?php
+
+$sbm_array = explode(';', MODULE_SOCIAL_BOOKMARKS_INSTALLED);
+
+$social_bookmarks = array();
+
+foreach ( $sbm_array as $sbm ) {
+$class = substr($sbm, 0, strrpos($sbm, '.'));
+
+if ( !class_exists($class) ) {
+include(DIR_WS_LANGUAGES . $language . '/modules/social_bookmarks/' . $sbm);
+include(DIR_WS_MODULES . 'social_bookmarks/' . $class . '.php');
+}
+
+$sb = new $class();
+
+if ( $sb->isEnabled() ) {
+$social_bookmarks[] = $sb->getOutput();
+}
+}
+
+if ( !empty($social_bookmarks) ) {
+$data = '<h3>' . implode( $social_bookmarks) . '</h3>';}
+
+echo $data;
+
+
+?>
+<?php
+}
+//++++ QT Pro: End Changed Code
+ $number_of_uploads = 0;
+ 
+    $products_attributes_query = tep_db_query("select count(*) as total from " . TABLE_PRODUCTS_OPTIONS . " popt, " . TABLE_PRODUCTS_ATTRIBUTES . " patrib where patrib.products_id='" . (int)$HTTP_GET_VARS['products_id'] . "' and patrib.options_id = popt.products_options_id and popt.language_id = '" . (int)$languages_id . "' and find_in_set('".$customer_group_id."', attributes_hide_from_groups) = 0 ");
+    $products_attributes = tep_db_fetch_array($products_attributes_query);
+    if ($products_attributes['total'] > 0) {
+//++++ QT Pro: Begin Changed code
+      $products_id=(preg_match("/^\d{1,10}(\{\d{1,10}\}\d{1,10})*$/",$HTTP_GET_VARS['products_id']) ? $HTTP_GET_VARS['products_id'] : (int)$HTTP_GET_VARS['products_id']); 
+	  
+      require(DIR_WS_CLASSES . 'pad_' . PRODINFO_ATTRIBUTE_PLUGIN . '.php');
+      $class = 'pad_' . PRODINFO_ATTRIBUTE_PLUGIN;
+      $pad = new $class($products_id);
+      echo $pad->draw();
+    }
+
+//Display a table with which attributecombinations is on stock to the customer?
+if(PRODINFO_ATTRIBUTE_DISPLAY_STOCK_LIST == 'True'): require(DIR_WS_MODULES . "qtpro_stock_table.php"); endif;
+
+//++++ QT Pro: End Changed Code
+?>
+
+
+    <div style="clear: both;"></div>
+
+<?php
+    if ($product_info['products_date_available'] > date('Y-m-d H:i:s')) {
+?>
+
+    <p style="text-align: center;"><?php echo sprintf(TEXT_DATE_AVAILABLE, tep_date_long($product_info['products_date_available'])); ?></p>
+
+<?php
+    }
+?>
+
+
+  <?php
+  if($product_info['mini_multi_qty'] > 0 ) {
+  $min_qty=$product_info['mini_multi_qty']; 
+  } else {
+  $min_qty =1;
+  }
+  ?>
+<div style="margin-bottom: 10px;" ><strong>Enter Quantity :</strong>
+  <input type="text" name="cart_quantity" value="<?php echo $min_qty;?>" id="cart_quantity_prinf"><input type="hidden" name="hdcart_quantity" value="<?php echo $min_qty;?>" id="hdcart_quantity_prinf">
+	<?php 
+	if($product_info['mini_multi_qty'] > 0 ) {
+	?>
+		<br><div id="hd_msg_qty" style="display:none;" class="main">Qunatity is updated</div><br><div id="miniinfo" class="main">* Minimum Quantity for this product is <?php echo $product_info['mini_multi_qty']?> and its Multiple</div>
+	<?php
+	}
+	?>
+</div>
+ 
+<?php
+    $reviews_query = tep_db_query("select count(*) as count from " . TABLE_REVIEWS . " where products_id = '" . (int)$HTTP_GET_VARS['products_id'] . "' and reviews_status = 1");
+    $reviews = tep_db_fetch_array($reviews_query);
+?>
+
+  <div class="buttonSet" id="mydiv">
+    <span class="buttonAction"><?php echo tep_draw_hidden_field('products_id', $product_info['products_id']) . tep_draw_button(IMAGE_BUTTON_IN_CART, 'cart', null, 'primary'); ?>
+
+
+    </span>
+
+    <?php echo tep_draw_button(IMAGE_BUTTON_REVIEWS . (($reviews['count'] > 0) ? ' (' . $reviews['count'] . ')' : ''), 'comment', tep_href_link(FILENAME_PRODUCT_REVIEWS, tep_get_all_get_params())); ?>
+
+
+</div>
+  </div>
+  </div>
+
+<div class="xsell">
+You May Also Like...
+</div>
+
+<?php
+//added for cross -sell
+    if ((USE_CACHE == 'true') && empty($SID)) {
+      echo tep_cache_xsell_products(3600); //added for Xsell
+      echo tep_cache_also_purchased(3600);
+    } else {
+      include(DIR_WS_MODULES . FILENAME_XSELL_PRODUCTS); //added for Xsell
+    }
+
+?>
+<?php /*** Begin Header Tags SEO ***/
+      if (tep_not_null($product_info['products_head_sub_text'])) {
+          echo '<tr><td><table border="0" cellpadding="0"><tr><td class="hts_sub_text"><div>' . $product_info['products_head_sub_text'] . '</div></td></tr></table></td></tr>';
+      }
+
+      if (HEADER_TAGS_DISPLAY_CURRENTLY_VIEWING == 'true') {
+          echo '<tr><td>' . tep_draw_separator('pixel_trans.gif', '100%', '10') . '</td></tr>';
+          echo '<tr><td align="center"><table border="0" cellpadding="0"><tr><td class="smallText" align="center">' .TEXT_VIEWING . '&nbsp;';
+          if (! tep_not_null($header_tags_array['title'])) $header_tags_array['title'] = $product_info['products_name'];
+          echo '<a title="' . $header_tags_array['title'] . '" href="' . tep_href_link(FILENAME_PRODUCT_INFO, 'products_id=' . $product_info['products_id'], 'NONSSL') . '"/# ' . $header_tags_array['title'] . '">' . $header_tags_array['title'] . '</a>';
+          echo '</td></tr></table></td></tr>';
+          echo '<tr><td>' . tep_draw_separator('pixel_trans.gif', '100%', '10') . '</td></tr>';
+      }
+      /*** End Header Tags SEO ***/
+      ?>
+</div>
+<?php echo  tep_draw_hidden_field('number_of_uploads', $number_of_uploads); ?>
+</form>
+<script type="text/javascript">
+$("#piGal a[rel^='fancybox']").fancybox({
+  cyclic: true
+});
+</script>
+<?php
+  
+
+  require(DIR_WS_INCLUDES . 'template_bottom.php');
+  require(DIR_WS_INCLUDES . 'application_bottom.php');
+?>
