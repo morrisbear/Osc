@@ -1,0 +1,1 @@
+<A HREF="javascript:history.back()"><?php echo tep_image_button('button_back.gif', IMAGE_BUTTON_BACK); ?></a>
