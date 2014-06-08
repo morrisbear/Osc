@@ -1,0 +1,24 @@
+// Added for information pages
+//  if (!isset($_GET['info_id']) || !tep_not_null($_GET['13']) || !is_numeric($_GET['13'])) {
+//    $title = 'Sorry. Page Not Found.';
+//    $breadcrumb->add($INFO_TITLE, tep_href_link(FILENAME_INFORMATION, 'info_id=13', 'NONSSL'));
+//  } else {
+    $info_id = intval($_GET['16']);
+    $information_query = tep_db_query("SELECT information_title, information_description FROM " . TABLE_INFORMATION . " WHERE visible='1' AND information_id='16' AND language_id='" . (int)$languages_id ."'");
+    $information = tep_db_fetch_array($information_query);
+    $title = stripslashes($information['information_title']);
+    $page_description = stripslashes($information['information_description']);
+
+    // Added as noticed by infopages module
+    if (!preg_match("/([\<])([^\>]{1,})*([\>])/i", $page_description)) {
+      $page_description = str_replace("\r\n", "<br>\r\n", $page_description);
+    }
+    $breadcrumb->add($title, tep_href_link(FILENAME_INFORMATION, 'info_id=16', 'NONSSL'));
+ // }    
+ 
+ <!-- // BOF: Information Pages Unlimited -->
+
+    <?php echo $page_description; ?>
+
+    <!-- // EOF: Information Pages Unlimited -->   
+  
