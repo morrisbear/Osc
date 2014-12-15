@@ -1,0 +1,1 @@
+<a href="<?php echo tep_href_link(FILENAME_INFORMATION, 'info_id=6'); ?>">About Us</a>
